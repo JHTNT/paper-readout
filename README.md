@@ -17,21 +17,30 @@ Turn an academic PDF into a compact bilingual annotated reading page with the Op
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install -r requirements.txt
-export OPENAI_API_KEY="sk-..."  # PowerShell: $env:OPENAI_API_KEY="sk-..."
+cp .env.example .env
 ```
 
-Optional model override:
+Put your API key in `.env`:
 
-```bash
-export OPENAI_MODEL="gpt-5.6-luna"
+```env
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-5.6-terra
+OPENAI_REASONING=high
 ```
 
-Terra is the default because it is a better fit for paper comprehension. Luna is useful when you want cheaper/high-volume first-pass reading.
+Terra is the default because it is a good fit for paper comprehension. Reasoning defaults to `high`; override it with `medium`, `xhigh`, or `max` when needed.
 
 ## Use
 
 ```bash
 python annotate.py path/to/paper.pdf
+```
+
+For more reasoning:
+
+```bash
+python annotate.py paper.pdf --reasoning xhigh
+python annotate.py paper.pdf --reasoning max
 ```
 
 Output:
