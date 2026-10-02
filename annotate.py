@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import logging
 import os
 import shutil
 from enum import Enum
@@ -13,6 +14,7 @@ from pydantic import BaseModel, Field
 from generate import render_html
 
 load_dotenv(Path(__file__).with_name(".env"))
+logger = logging.getLogger(__name__)
 
 
 class Kind(str, Enum):
@@ -42,13 +44,23 @@ class Overview(BaseModel):
 
 
 class Block(BaseModel):
-    page: int = Field(description="1-based PDF page index. Use 0 only if genuinely uncertain.")
+    page: int = Field(
+        description="1-based PDF page index. Use 0 only if genuinely uncertain."
+    )
     kind: Kind
     importance: int = Field(ge=1, le=5)
-    en: str = Field(description="A short verbatim excerpt from the paper, usually 1-4 sentences.")
-    zh: str = Field(description="Natural Traditional Chinese translation of the excerpt.")
-    annotation: str = Field(description="Explain what this passage is doing in the paper.")
-    why_it_matters: str = Field(description="Why a thesis reader should care about this passage.")
+    en: str = Field(
+        description="A short verbatim excerpt from the paper, usually 1-4 sentences."
+    )
+    zh: str = Field(
+        description="Natural Traditional Chinese translation of the excerpt."
+    )
+    annotation: str = Field(
+        description="Explain what this passage is doing in the paper."
+    )
+    why_it_matters: str = Field(
+        description="Why a thesis reader should care about this passage."
+    )
 
 
 class Section(BaseModel):
@@ -96,7 +108,11 @@ def annotate(pdf: Path, model: str, detail: str, reasoning_effort: str) -> Paper
                 {
                     "role": "user",
                     "content": [
-                        {"type": "input_file", "file_id": uploaded.id, "detail": detail},
+                        {
+                            "type": "input_file",
+                            "file_id": uploaded.id,
+                            "detail": detail,
+                        },
                         {"type": "input_text", "text": USER_PROMPT},
                     ],
                 },
@@ -110,11 +126,13 @@ def annotate(pdf: Path, model: str, detail: str, reasoning_effort: str) -> Paper
         try:
             client.files.delete(uploaded.id)
         except Exception:
-            pass
+            logger.exception("Failed to delete uploaded file %s", uploaded.id)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Turn an academic PDF into an annotated reading webpage.")
+    parser = argparse.ArgumentParser(
+        description="Turn an academic PDF into an annotated reading webpage."
+    )
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--model", default=os.getenv("OPENAI_MODEL", "gpt-5.6-terra"))
     parser.add_argument("--detail", choices=["low", "auto", "high"], default="low")
@@ -129,7 +147,9 @@ def main() -> None:
     if args.pdf.suffix.lower() != ".pdf" or not args.pdf.is_file():
         parser.error("pdf must point to an existing .pdf file")
     if not os.getenv("OPENAI_API_KEY"):
-        parser.error("OPENAI_API_KEY is not set. Copy .env.example to .env and add your key.")
+        parser.error(
+            "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key."
+        )
 
     paper = annotate(args.pdf, args.model, args.detail, args.reasoning)
     out_dir = args.out / args.pdf.stem

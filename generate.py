@@ -39,23 +39,23 @@ def render_html(paper: dict, out: Path) -> None:
 <article class="pair" data-importance="{importance}" data-kind="{esc(kind)}">
   <div class="source">
     <div class="meta-row"><span class="tag tag-{esc(kind)}">{esc(LABELS.get(kind, kind))}</span><span>{esc(page_label)}</span><span>重要度 {importance}/5</span></div>
-    <blockquote>{esc(block['en'])}</blockquote>
-    <p class="translation">{esc(block['zh'])}</p>
+    <blockquote>{esc(block["en"])}</blockquote>
+    <p class="translation">{esc(block["zh"])}</p>
   </div>
   <aside class="annotation">
     <h3>這段在做什麼</h3>
-    <p>{esc(block['annotation'])}</p>
+    <p>{esc(block["annotation"])}</p>
     <h3>為什麼值得看</h3>
-    <p>{esc(block['why_it_matters'])}</p>
+    <p>{esc(block["why_it_matters"])}</p>
   </aside>
 </article>""")
         sections_html.append(f"""
 <section>
   <div class="section-head">
-    <h2>{esc(section['title'])}</h2>
-    <p>{esc(section['summary_zh'])}</p>
+    <h2>{esc(section["title"])}</h2>
+    <p>{esc(section["summary_zh"])}</p>
   </div>
-  {''.join(blocks)}
+  {"".join(blocks)}
 </section>""")
 
     doc = f"""<!doctype html>
@@ -63,27 +63,27 @@ def render_html(paper: dict, out: Path) -> None:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{esc(meta['title'])}</title>
+  <title>{esc(meta["title"])}</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header class="hero">
   <p class="eyebrow">AI paper readout</p>
-  <h1>{esc(meta['title'])}</h1>
+  <h1>{esc(meta["title"])}</h1>
   <p>{esc(authors)}</p>
-  <p>{esc(meta.get('venue'))} · {esc(meta.get('year'))}</p>
+  <p>{esc(meta.get("venue"))} · {esc(meta.get("year"))}</p>
 </header>
 
 <main>
 <section class="overview">
-  <div class="one-line"><strong>一句話：</strong>{esc(overview['one_line'])}</div>
+  <div class="one-line"><strong>一句話：</strong>{esc(overview["one_line"])}</div>
   <div class="overview-grid">
-    <div><h2>研究問題</h2><p>{esc(overview['research_question'])}</p></div>
-    <div><h2>動機</h2><p>{esc(overview['motivation'])}</p></div>
-    <div><h2>方法</h2><p>{esc(overview['method'])}</p></div>
-    <div><h2>主要貢獻</h2><ul>{list_items(overview['contributions'])}</ul></div>
-    <div><h2>主要結果</h2><ul>{list_items(overview['main_findings'])}</ul></div>
-    <div><h2>限制</h2><ul>{list_items(overview['limitations'])}</ul></div>
+    <div><h2>研究問題</h2><p>{esc(overview["research_question"])}</p></div>
+    <div><h2>動機</h2><p>{esc(overview["motivation"])}</p></div>
+    <div><h2>方法</h2><p>{esc(overview["method"])}</p></div>
+    <div><h2>主要貢獻</h2><ul>{list_items(overview["contributions"])}</ul></div>
+    <div><h2>主要結果</h2><ul>{list_items(overview["main_findings"])}</ul></div>
+    <div><h2>限制</h2><ul>{list_items(overview["limitations"])}</ul></div>
   </div>
 </section>
 
@@ -94,7 +94,7 @@ def render_html(paper: dict, out: Path) -> None:
   <button data-min="5">5</button>
 </div>
 
-{''.join(sections_html)}
+{"".join(sections_html)}
 </main>
 <script>
 const buttons = [...document.querySelectorAll('[data-min]')];
