@@ -84,12 +84,13 @@ USER_PROMPT = """請把這篇論文整理成可供快速精讀的雙欄批註資
 """
 
 
-def annotate(pdf: Path, model: str, detail: str) -> Paper:
+def annotate(pdf: Path, model: str, detail: str, reasoning_effort: str) -> Paper:
     client = OpenAI()
     uploaded = client.files.create(file=pdf.open("rb"), purpose="user_data")
     try:
         response = client.responses.parse(
             model=model,
+            reasoning={"effort": reasoning_effort},
             input=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {
@@ -117,6 +118,11 @@ def main() -> None:
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--model", default=os.getenv("OPENAI_MODEL", "gpt-5.6-terra"))
     parser.add_argument("--detail", choices=["low", "auto", "high"], default="low")
+    parser.add_argument(
+        "--reasoning",
+        choices=["none", "low", "medium", "high", "xhigh", "max"],
+        default=os.getenv("OPENAI_REASONING", "high"),
+    )
     parser.add_argument("--out", type=Path, default=Path("output"))
     args = parser.parse_args()
 
@@ -125,7 +131,7 @@ def main() -> None:
     if not os.getenv("OPENAI_API_KEY"):
         parser.error("OPENAI_API_KEY is not set. Copy .env.example to .env and add your key.")
 
-    paper = annotate(args.pdf, args.model, args.detail)
+    paper = annotate(args.pdf, args.model, args.detail, args.reasoning)
     out_dir = args.out / args.pdf.stem
     out_dir.mkdir(parents=True, exist_ok=True)
 
