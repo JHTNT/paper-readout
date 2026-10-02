@@ -49,6 +49,11 @@ section { margin-top: 22px; }
 .tag-limitation { background: #e5e7eb; }
 blockquote { margin: 0; font: 1.03rem/1.72 ui-serif, Georgia, serif; }
 .translation { margin: 16px 0 0; color: var(--muted); }
+blockquote, .translation, .annotation p { white-space: pre-line; overflow-wrap: anywhere; }
+.source, .annotation, .overview-grid > div { min-width: 0; }
+mark { background: #fff0a6; color: #242014; border-radius: 3px; padding: .05em .12em; }
+.katex { white-space: normal; }
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: .2em 0; }
 [hidden] { display: none !important; }
 
 @media (max-width: 800px) {
@@ -58,4 +63,5 @@ blockquote { margin: 0; font: 1.03rem/1.72 ui-serif, Georgia, serif; }
 
 @media (prefers-color-scheme: dark) {
   :root { --bg: #151515; --card: #1f1f1f; --text: #eeeeea; --muted: #aaa9a2; --border: #353535; --note: #24282e; }
+  mark { background: #665322; color: #fff2c2; }
 }

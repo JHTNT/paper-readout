@@ -2,6 +2,8 @@
 import argparse
 import html
 import json
+import re
+import shutil
 from pathlib import Path
 
 LABELS = {
@@ -16,6 +18,30 @@ LABELS = {
 
 def esc(value) -> str:
     return html.escape(str(value or ""))
+
+
+def highlighted(value: str, highlights: list[str]) -> str:
+    # Keep math intact so highlighting cannot split a KaTeX expression.
+    parts = re.split(r"(\\\([\s\S]*?\\\)|\\\[[\s\S]*?\\\])", value)
+    phrases = sorted({s for s in highlights if s and s in value}, key=len, reverse=True)
+    pattern = "|".join(re.escape(s) for s in phrases)
+    rendered = []
+    for index, part in enumerate(parts):
+        if index % 2:
+            rendered.append(
+                f"<mark>{esc(part)}</mark>" if part in phrases else esc(part)
+            )
+        elif pattern:
+            chunks = re.split(f"({pattern})", part)
+            rendered.append(
+                "".join(
+                    f"<mark>{esc(chunk)}</mark>" if i % 2 else esc(chunk)
+                    for i, chunk in enumerate(chunks)
+                )
+            )
+        else:
+            rendered.append(esc(part))
+    return "".join(rendered)
 
 
 def list_items(items: list[str]) -> str:
@@ -39,8 +65,8 @@ def render_html(paper: dict, out: Path) -> None:
 <article class="pair" data-importance="{importance}" data-kind="{esc(kind)}">
   <div class="source">
     <div class="meta-row"><span class="tag tag-{esc(kind)}">{esc(LABELS.get(kind, kind))}</span><span>{esc(page_label)}</span><span>重要度 {importance}/5</span></div>
-    <blockquote>{esc(block["en"])}</blockquote>
-    <p class="translation">{esc(block["zh"])}</p>
+    <blockquote>{highlighted(block["en"], block.get("en_highlights", []))}</blockquote>
+    <p class="translation">{highlighted(block["zh"], block.get("zh_highlights", []))}</p>
   </div>
   <aside class="annotation">
     <h3>這段在做什麼</h3>
@@ -65,6 +91,10 @@ def render_html(paper: dict, out: Path) -> None:
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{esc(meta["title"])}</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.querySelector('main'), {{delimiters: [{{left: '\\\\[', right: '\\\\]', display: true}}, {{left: '\\\\(', right: '\\\\)', display: false}}], throwOnError: false, trust: false}})"></script>
 </head>
 <body>
 <header class="hero">
@@ -110,6 +140,10 @@ filter(4);
 </body>
 </html>"""
     out.write_text(doc, encoding="utf-8")
+    stylesheet = Path(__file__).with_name("style.css")
+    target = out.with_name("style.css")
+    if stylesheet.resolve() != target.resolve():
+        shutil.copy2(stylesheet, target)
 
 
 def main() -> None:

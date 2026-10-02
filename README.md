@@ -10,6 +10,8 @@ Turn an academic PDF into a compact bilingual annotated reading page with the Op
 - AI annotation and "why it matters"
 - page reference and importance score
 - static HTML with a 3+/4+/5 importance filter
+- fuller passages (usually 3–6 consecutive sentences) with bilingual key-phrase highlights
+- LaTeX equations rendered with KaTeX (pinned CDN assets; requires internet access)
 
 ## Setup
 
@@ -53,6 +55,23 @@ output/<paper-name>/
 ```
 
 Open `paper.html` in a browser.
+
+To rebuild an existing JSON file's HTML and stylesheet without calling the API:
+
+```bash
+python generate.py output/2307.08691v1/paper.json
+```
+
+Each block may contain `en_highlights` and `zh_highlights`: arrays of exact
+substrings of `en` and `zh`. These render as highlights; older JSON files without
+them still work. Text is HTML-escaped, so model output cannot inject HTML.
+Use `\( ... \)` for inline math and `\[ ... \]` for display math in text fields
+(double the backslashes inside JSON strings). Highlight an entire formula,
+including its delimiters, rather than part of it. Dollar signs remain plain text.
+If KaTeX cannot load or parse an expression, the formula remains readable as text.
+
+Longer excerpts, highlights, and LaTeX transcription require regenerating the
+annotations with `annotate.py`; rebuilding HTML alone does not enrich old JSON.
 
 For dense diagrams or tiny text:
 
