@@ -6,10 +6,13 @@ import shutil
 from enum import Enum
 from pathlib import Path
 
+from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field
 
 from generate import render_html
+
+load_dotenv(Path(__file__).with_name(".env"))
 
 
 class Kind(str, Enum):
@@ -120,7 +123,7 @@ def main() -> None:
     if args.pdf.suffix.lower() != ".pdf" or not args.pdf.is_file():
         parser.error("pdf must point to an existing .pdf file")
     if not os.getenv("OPENAI_API_KEY"):
-        parser.error("OPENAI_API_KEY is not set")
+        parser.error("OPENAI_API_KEY is not set. Copy .env.example to .env and add your key.")
 
     paper = annotate(args.pdf, args.model, args.detail)
     out_dir = args.out / args.pdf.stem
