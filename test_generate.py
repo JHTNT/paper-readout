@@ -47,7 +47,9 @@ def test_readout():
     with TemporaryDirectory() as directory:
         out = Path(directory) / "paper.html"
         render_html(paper, out)
-        assert "<blockquote>Original passage.</blockquote>" in out.read_text("utf-8")
+        assert '<blockquote lang="en">Original passage.</blockquote>' in out.read_text(
+            "utf-8"
+        )
         block.update(
             en=math + "\nKey claim.",
             zh="重要結論。",
@@ -57,6 +59,13 @@ def test_readout():
         Paper.model_validate_json(json.dumps(paper))
         render_html(paper, out)
         doc = out.read_text("utf-8")
+        assert '<a href="#section-1">' in doc and "<span>Section</span></a>" in doc
+        assert '<div class="workspace">' in doc
+        assert '<div class="original">' in doc and '<div class="translated">' in doc
+        assert 'id="section-1" aria-labelledby="heading-1"' in doc
+        assert '<h2 id="heading-1">Section</h2>' in doc
+        assert 'data-min="4" aria-pressed="true"' in doc
+        assert 'class="empty-section" hidden' in doc
         assert "<mark>Key claim.</mark>" in doc
         assert "<mark>重要結論</mark>" in doc
         assert esc(math) in doc

@@ -6,15 +6,6 @@ import re
 import shutil
 from pathlib import Path
 
-LABELS = {
-    "problem": "研究缺口",
-    "contribution": "貢獻",
-    "concept": "核心概念",
-    "method": "方法",
-    "result": "結果",
-    "limitation": "限制",
-}
-
 
 def esc(value) -> str:
     return html.escape(str(value or ""))
@@ -54,21 +45,32 @@ def render_html(paper: dict, out: Path) -> None:
     authors = ", ".join(meta.get("authors", []))
 
     sections_html = []
-    for section in paper.get("sections", []):
+    contents = []
+    for index, section in enumerate(paper.get("sections", []), start=1):
+        contents.append(
+            f'<li><a href="#section-{index}"><span class="nav-number" aria-hidden="true">{index:02d}</span>'
+            f"<span>{esc(section['title'])}</span></a></li>"
+        )
         blocks = []
         for block in section.get("blocks", []):
-            kind = block["kind"]
             importance = int(block["importance"])
             page = int(block.get("page", 0))
             page_label = f"p. {page}" if page else "page ?"
             blocks.append(f"""
-<article class="pair" data-importance="{importance}" data-kind="{esc(kind)}">
+<article class="pair" data-importance="{importance}">
   <div class="source">
-    <div class="meta-row"><span class="tag tag-{esc(kind)}">{esc(LABELS.get(kind, kind))}</span><span>{esc(page_label)}</span><span>重要度 {importance}/5</span></div>
-    <blockquote>{highlighted(block["en"], block.get("en_highlights", []))}</blockquote>
-    <p class="translation">{highlighted(block["zh"], block.get("zh_highlights", []))}</p>
+    <div class="meta-row"><span>{esc(page_label)}</span><span>重要度 {importance}/5</span></div>
+    <div class="original">
+      <p class="passage-label">原文 <span lang="en">SOURCE</span></p>
+      <blockquote lang="en">{highlighted(block["en"], block.get("en_highlights", []))}</blockquote>
+    </div>
+    <div class="translated">
+      <p class="passage-label">繁體中文 <span lang="en">TRANSLATION</span></p>
+      <p class="translation">{highlighted(block["zh"], block.get("zh_highlights", []))}</p>
+    </div>
   </div>
   <aside class="annotation">
+    <p class="passage-label">閱讀批註 <span lang="en">NOTES</span></p>
     <h3>這段在做什麼</h3>
     <p>{esc(block["annotation"])}</p>
     <h3>為什麼值得看</h3>
@@ -76,11 +78,13 @@ def render_html(paper: dict, out: Path) -> None:
   </aside>
 </article>""")
         sections_html.append(f"""
-<section>
+<section class="reading-section" id="section-{index}" aria-labelledby="heading-{index}">
   <div class="section-head">
-    <h2>{esc(section["title"])}</h2>
+    <span class="section-number" aria-hidden="true">{index:02d}</span>
+    <h2 id="heading-{index}">{esc(section["title"])}</h2>
     <p>{esc(section["summary_zh"])}</p>
   </div>
+  <p class="empty-section" hidden>此節沒有符合條件的摘錄，請調低重要度篩選。</p>
   {"".join(blocks)}
 </section>""")
 
@@ -97,16 +101,28 @@ def render_html(paper: dict, out: Path) -> None:
     onload="renderMathInElement(document.querySelector('main'), {{delimiters: [{{left: '\\\\[', right: '\\\\]', display: true}}, {{left: '\\\\(', right: '\\\\)', display: false}}], throwOnError: false, trust: false}})"></script>
 </head>
 <body>
-<header class="hero">
-  <p class="eyebrow">AI paper readout</p>
-  <h1>{esc(meta["title"])}</h1>
-  <p>{esc(authors)}</p>
-  <p>{esc(meta.get("venue"))} · {esc(meta.get("year"))}</p>
-</header>
+<a class="skip-link" href="#overview">跳至閱讀內容</a>
+<div class="workspace">
+<aside class="sidebar">
+  <nav class="contents" aria-label="章節目錄">
+    <a class="overview-link" href="#overview">論文總覽 <span aria-hidden="true">↗</span></a>
+    <details open>
+      <summary>章節導覽 <span>{len(contents)} 個章節</span></summary>
+      <ol>{"".join(contents)}</ol>
+    </details>
+  </nav>
+  <p class="sidebar-note">循著章節精讀，對照原文與批註。<br>用重要度篩選調整閱讀深度。</p>
+</aside>
 
 <main>
-<section class="overview">
-  <div class="one-line"><strong>一句話：</strong>{esc(overview["one_line"])}</div>
+<header class="hero" id="top">
+  <p class="eyebrow">RESEARCH NOTE <span>雙語閱讀 · 重點批註</span></p>
+  <h1>{esc(meta["title"])}</h1>
+  <div class="paper-meta"><span>{esc(authors)}</span><span>{esc(meta.get("venue"))}</span><span>{esc(meta.get("year"))}</span></div>
+</header>
+
+<section class="overview" id="overview" aria-label="論文總覽">
+  <div class="one-line"><strong>一句話掌握<span lang="en">THE TAKEAWAY</span></strong><p>{esc(overview["one_line"])}</p></div>
   <div class="overview-grid">
     <div><h2>研究問題</h2><p>{esc(overview["research_question"])}</p></div>
     <div><h2>動機</h2><p>{esc(overview["motivation"])}</p></div>
@@ -117,22 +133,40 @@ def render_html(paper: dict, out: Path) -> None:
   </div>
 </section>
 
-<div class="toolbar" role="group" aria-label="重要度篩選">
-  <span>顯示重要度：</span>
-  <button data-min="3">3+</button>
-  <button data-min="4" class="active">4+</button>
-  <button data-min="5">5</button>
+<div class="toolbar">
+  <div class="filter-controls" role="group" aria-label="重要度篩選">
+    <span class="filter-label">重要度</span>
+    <button type="button" data-min="3" aria-pressed="false">3+ 補充</button>
+    <button type="button" data-min="4" aria-pressed="true" class="active">4+ 重點</button>
+    <button type="button" data-min="5" aria-pressed="false">5 核心</button>
+  </div>
+  <span class="readout-count" role="status" aria-live="polite"></span>
+  <a class="back-to-top" href="#top">回到頂端 ↑</a>
 </div>
 
 {"".join(sections_html)}
 </main>
+</div>
 <script>
+const contents = document.querySelector('.contents details');
+const desktop = window.matchMedia('(min-width: 1100px)');
+contents.open = desktop.matches;
+desktop.addEventListener('change', event => {{ contents.open = event.matches; }});
 const buttons = [...document.querySelectorAll('[data-min]')];
+const pairs = [...document.querySelectorAll('.pair')];
 function filter(min) {{
-  document.querySelectorAll('.pair').forEach(el => {{
+  pairs.forEach(el => {{
     el.hidden = Number(el.dataset.importance) < min;
   }});
-  buttons.forEach(b => b.classList.toggle('active', Number(b.dataset.min) === min));
+  buttons.forEach(b => {{
+    const active = Number(b.dataset.min) === min;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-pressed', String(active));
+  }});
+  document.querySelector('.readout-count').textContent = `${{pairs.filter(el => !el.hidden).length}} / ${{pairs.length}} 段`;
+  document.querySelectorAll('.reading-section').forEach(section => {{
+    section.querySelector('.empty-section').hidden = [...section.querySelectorAll('.pair')].some(el => !el.hidden);
+  }});
 }}
 buttons.forEach(b => b.addEventListener('click', () => filter(Number(b.dataset.min))));
 filter(4);
