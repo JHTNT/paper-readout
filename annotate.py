@@ -130,10 +130,34 @@ class Section(BaseModel):
     blocks: list[Block]
 
 
+class GlossaryEntry(BaseModel):
+    term: str = Field(description="Term or abbreviation exactly as used in the paper.")
+    zh: str = Field(description="Traditional Chinese name or contextual translation.")
+    full_name: str = Field(
+        description="Full form of an abbreviation, only if confirmed by the paper. "
+        "Empty string for non-abbreviations or unknown expansions."
+    )
+    definition: str = Field(description="Plain-language explanation in zh-TW.")
+    paper_usage: str = Field(
+        description="How the paper uses this term, including any special meaning "
+        "or distinction from its usual meaning, in zh-TW."
+    )
+    page: int = Field(
+        ge=0,
+        description="1-based PDF page where this usage is defined or illustrated; "
+        "0 only if uncertain.",
+    )
+
+
 class Paper(BaseModel):
     meta: Meta
     overview: Overview
     sections: list[Section]
+    glossary: list[GlossaryEntry] = Field(
+        default_factory=list,
+        description="Useful explanations of uncommon terms, abbreviations, and "
+        "paper-specific meanings. Deduplicate and order by first appearance.",
+    )
 
 
 SYSTEM_PROMPT = r"""你是一位協助碩士生閱讀學術論文的研究助理。
@@ -179,6 +203,21 @@ SYSTEM_PROMPT = r"""你是一位協助碩士生閱讀學術論文的研究助理
 - notes 以繁體中文保留解讀表格所需的註腳與轉寫限制，沒有時填空字串。
   若無法可靠辨識整張表格或欄列結構，headers / rows 都填空陣列，在 notes 說明原因；
   仍保留表號、頁碼及能確認的導讀，不捏造表格內容。
+
+名詞解釋：
+- glossary 收錄理解本文所需的不常見專有名詞、縮寫、作者自定義的名稱，
+  以及字面普通但在本文有特殊技術意義或用法的詞；也涵蓋重要圖表中的指標與元件。
+  只收錄論文實際出現且值得解釋的詞，不湊數或羅列一般單字，按首次出現順序排列。
+- term 保留原文拼寫與大小寫，zh 提供本文語境下合適的繁體中文名稱或譯法。
+  縮寫與全名指同一概念時合併為一筆；同一詞確有不同義項時分開說明並標明語境。
+- full_name 只填論文能確認的縮寫全名；非縮寫或無法確認時填空字串。
+  無法確認全名或定義時在 paper_usage 直接註明，不能用同名的常見縮寫含義猜補。
+- definition 用 2–3 句白話說明這個概念是什麼、如何運作，必要時用短例子輔助，
+  不要只翻譯名稱，也不要用更多未解釋的術語循環定義；例子應標明是輔助理解。
+- paper_usage 用 1–3 句說明這個詞在本文指什麼、用在哪裡，或為何影響方法／結果的理解。
+  作者賦予的特殊意義應與通常含義區分；一般背景解釋不能冒充本文提出的定義或發現。
+- page 指向能查到該用法或定義的 PDF 1-based 頁序，真的無法確認才填 0。
+  無需解釋的論文可回傳空 glossary；解釋中的公式沿用 LaTeX 規則。
 """
 
 USER_PROMPT = """請把這篇論文整理成可供快速精讀的雙欄批註資料。

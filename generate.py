@@ -84,10 +84,44 @@ def render_visual_guides(block: dict) -> str:
     return '<div class="visual-guides">' + "".join(guides) + "</div>"
 
 
+def render_glossary(entries: list[dict]) -> str:
+    if not entries:
+        return ""
+    items = []
+    for entry in entries:
+        page = int(entry.get("page", 0))
+        location = f"原始 PDF 第 {page} 頁" if page else "原始 PDF 頁碼待確認"
+        full_name = (
+            f'<p class="term-full-name">全名：<span lang="en">{esc(entry["full_name"])}</span></p>'
+            if entry.get("full_name")
+            else ""
+        )
+        items.append(f"""<div class="glossary-entry">
+  <dt><span lang="en">{esc(entry["term"])}</span><span class="term-zh">{esc(entry["zh"])}</span></dt>
+  <dd>
+    {full_name}
+    <p class="term-label">白話解釋</p><p class="term-text">{esc(entry["definition"])}</p>
+    <p class="term-label">本文用法</p><p class="term-text">{esc(entry["paper_usage"])}</p>
+    <p class="term-page">{location}</p>
+  </dd>
+</div>""")
+    return f"""<section class="glossary" id="glossary" aria-labelledby="glossary-heading">
+  <h2 id="glossary-heading">名詞解釋</h2>
+  <p class="glossary-intro">專有名詞、縮寫與本文中的特殊用法，共 {len(entries)} 個詞條。</p>
+  <dl class="glossary-list">{"".join(items)}</dl>
+</section>"""
+
+
 def render_html(paper: dict, out: Path) -> None:
     meta = paper["meta"]
     overview = paper["overview"]
     authors = ", ".join(meta.get("authors", []))
+    glossary_html = render_glossary(paper.get("glossary", []))
+    glossary_link = (
+        '<a class="overview-link glossary-link" href="#glossary">名詞解釋 <span aria-hidden="true">↗</span></a>'
+        if glossary_html
+        else ""
+    )
 
     sections_html = []
     contents = []
@@ -152,6 +186,7 @@ def render_html(paper: dict, out: Path) -> None:
 <aside class="sidebar">
   <nav class="contents" aria-label="章節目錄">
     <a class="overview-link" href="#overview">論文總覽 <span aria-hidden="true">↗</span></a>
+    {glossary_link}
     <details open>
       <summary>章節導覽 <span>{len(contents)} 個章節</span></summary>
       <ol>{"".join(contents)}</ol>
@@ -191,6 +226,7 @@ def render_html(paper: dict, out: Path) -> None:
 </div>
 
 {"".join(sections_html)}
+{glossary_html}
 </main>
 </div>
 <script>

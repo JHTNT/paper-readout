@@ -108,6 +108,21 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
 .data-table tbody tr:nth-child(even) { background: var(--note); }
 .table-notes { margin-top: 14px; color: var(--muted); font-size: .85rem; }
 
+/* Paper-specific terminology remains available at every reading depth. */
+.glossary-link { margin-top: 8px; }
+.glossary { margin-top: 44px; }
+.glossary > h2 { margin: 0 0 10px; font-size: 1.4rem; }
+.glossary-intro { margin: 0 0 24px; color: var(--muted); font-size: .94rem; }
+.glossary-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 0; }
+.glossary-entry { min-width: 0; padding: 28px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
+.glossary-entry dt { font-size: 1.05rem; font-weight: 650; color: var(--accent); }
+.term-zh { display: block; margin-top: 4px; font-size: .9rem; font-weight: 400; color: var(--text); }
+.glossary-entry dd { margin: 0; }
+.term-full-name { margin: 12px 0 0; font-size: .85rem; color: var(--muted); }
+.term-label { margin: 20px 0 8px; font-size: .8rem; font-weight: 650; color: var(--accent); }
+.term-text { margin: 0; font-size: .94rem; white-space: pre-line; }
+.term-page { margin: 18px 0 0; color: var(--muted); font-size: .75rem; }
+
 /* Use available content width, including when a sidebar is present. */
 @container reader (min-width: 1120px) {
   .overview-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -120,6 +135,7 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
   .pair { grid-template-columns: 1fr; }
   .annotation { border-left: 0; border-top: 1px solid var(--border); }
   .visual-explanation { grid-template-columns: 1fr; }
+  .glossary-list { grid-template-columns: 1fr; }
 }
 @container reader (max-width: 560px) {
   .overview-grid { grid-template-columns: 1fr; }
@@ -144,7 +160,7 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
   .paper-meta { gap: 6px 12px; }
   .paper-meta span + span { padding-left: 0; border: 0; }
   .contents ol { grid-template-columns: 1fr; }
-  .one-line, .overview-grid > div, .source, .annotation, .visual-guides { padding: 22px; }
+  .one-line, .overview-grid > div, .source, .annotation, .visual-guides, .glossary-entry { padding: 22px; }
   .toolbar { padding: 10px; }
   button { padding: 8px 10px; }
   .section-head { grid-template-columns: 36px minmax(0, 1fr); gap: 0 12px; }
@@ -174,4 +190,6 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
   .table-scroll { overflow: visible; }
   .data-table { font-size: 9pt; }
   .data-table tr { break-inside: avoid; }
+  .glossary-list { display: block; }
+  .glossary-entry { margin-bottom: 16px; padding: 16px; border-radius: 0; break-inside: avoid; }
 }

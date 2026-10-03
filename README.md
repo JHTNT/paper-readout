@@ -14,6 +14,7 @@ Turn an academic PDF into a compact bilingual annotated reading page with the Op
 - LaTeX equations rendered with KaTeX (pinned CDN assets; requires internet access)
 - figure guides with original figure labels, PDF page references, bilingual captions, and how-to-read explanations
 - important tables transcribed into HTML tables, with bilingual captions, reading guides, and table notes
+- a glossary of uncommon terms, abbreviations, and paper-specific meanings, with plain-language explanations and PDF page references
 
 ## Setup
 
@@ -72,8 +73,22 @@ Use `\( ... \)` for inline math and `\[ ... \]` for display math in text fields
 including its delimiters, rather than part of it. Dollar signs remain plain text.
 If KaTeX cannot load or parse an expression, the formula remains readable as text.
 
-Longer excerpts, highlights, LaTeX transcription, and figure/table guides require regenerating the
+Longer excerpts, highlights, LaTeX transcription, figure/table guides, and the glossary require regenerating the
 annotations with `annotate.py`; rebuilding HTML alone does not enrich old JSON.
+
+### Glossary
+
+The API returns a paper-level `glossary` array in the same annotation request.
+Each entry contains `term` (original spelling), `zh` (Chinese name), `full_name`
+(the abbreviation's expansion, or an empty string), `definition` (a plain-language
+explanation), `paper_usage` (the meaning and role in this paper), and `page`
+(the 1-based PDF page defining or illustrating the usage, or 0 if uncertain).
+
+Entries focus on uncommon technical terms, abbreviations, and ordinary words with
+special meanings in the paper. Unconfirmed expansions are left empty and explained
+in `paper_usage`. The glossary appears at the end of the page with a sidebar link,
+and stays available regardless of the passage importance filter. Missing or empty
+glossaries are omitted, so older JSON files remain compatible.
 
 ### Figure and table guides
 

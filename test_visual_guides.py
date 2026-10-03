@@ -47,6 +47,16 @@ def example_paper():
             "main_findings": [],
             "limitations": [],
         },
+        "glossary": [
+            {
+                "term": "MAE",
+                "zh": "平均絕對誤差",
+                "full_name": "Mean Absolute Error",
+                "definition": "把每筆預測與答案的差距取絕對值，再算平均；越小表示誤差越小。",
+                "paper_usage": "本文用 MAE 比較各模型在相同測試資料上的預測誤差。",
+                "page": 7,
+            }
+        ],
         "sections": [
             {
                 "title": "方法與結果",
@@ -145,10 +155,12 @@ class VisualGuideTests(unittest.TestCase):
         def respond(request):
             schema = json.loads(request.content)["text"]["format"]
             self.assertTrue(schema["strict"])
+            self.assertIn("glossary", schema["schema"]["required"])
             defs = schema["schema"]["$defs"]
             self.assertIn("figures", defs["Block"]["required"])
             self.assertIn("tables", defs["Block"]["required"])
             self.assertFalse(defs["TableGuide"]["additionalProperties"])
+            self.assertFalse(defs["GlossaryEntry"]["additionalProperties"])
             return httpx.Response(
                 200,
                 json={
@@ -184,6 +196,9 @@ class VisualGuideTests(unittest.TestCase):
         self.assertEqual(
             result.output_parsed.sections[0].blocks[0].tables[0].rows[1][1],
             "0.095 ± 0.008",
+        )
+        self.assertEqual(
+            result.output_parsed.glossary[0].full_name, "Mean Absolute Error"
         )
 
 
