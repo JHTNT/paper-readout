@@ -90,6 +90,24 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
 .skip-link:focus { top: 12px; }
 [hidden] { display: none !important; }
 
+/* Figure guides and table data stay with the passage that discusses them. */
+.visual-guides { grid-column: 1 / -1; min-width: 0; padding: 28px; border-top: 1px solid var(--border); }
+.visual-guide + .visual-guide { margin-top: 28px; padding-top: 28px; border-top: 1px solid var(--border); }
+.visual-guide h3 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; margin: 0 0 14px; font-size: 1rem; color: var(--accent); }
+.visual-guide h3 span { font-size: .78rem; color: var(--muted); font-weight: 400; }
+.visual-caption { margin: 0 0 18px; text-align: left; font-size: .9rem; }
+.visual-caption > span { display: block; white-space: pre-line; }
+.visual-caption > span + span { margin-top: 6px; color: var(--muted); }
+.visual-explanation { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; margin-top: 20px; }
+.visual-explanation h4 { margin: 0 0 8px; color: var(--accent); font-size: .83rem; }
+.visual-explanation p, .table-notes { margin: 0; font-size: .94rem; white-space: pre-line; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; }
+.data-table th, .data-table td { padding: 10px 14px; border: 1px solid var(--border); text-align: left; white-space: pre-line; min-width: 7ch; }
+.data-table th { background: var(--accent-soft); }
+.data-table tbody tr:nth-child(even) { background: var(--note); }
+.table-notes { margin-top: 14px; color: var(--muted); font-size: .85rem; }
+
 /* Use available content width, including when a sidebar is present. */
 @container reader (min-width: 1120px) {
   .overview-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -101,6 +119,7 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
 @container reader (max-width: 760px) {
   .pair { grid-template-columns: 1fr; }
   .annotation { border-left: 0; border-top: 1px solid var(--border); }
+  .visual-explanation { grid-template-columns: 1fr; }
 }
 @container reader (max-width: 560px) {
   .overview-grid { grid-template-columns: 1fr; }
@@ -125,7 +144,7 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
   .paper-meta { gap: 6px 12px; }
   .paper-meta span + span { padding-left: 0; border: 0; }
   .contents ol { grid-template-columns: 1fr; }
-  .one-line, .overview-grid > div, .source, .annotation { padding: 22px; }
+  .one-line, .overview-grid > div, .source, .annotation, .visual-guides { padding: 22px; }
   .toolbar { padding: 10px; }
   button { padding: 8px 10px; }
   .section-head { grid-template-columns: 36px minmax(0, 1fr); gap: 0 12px; }
@@ -146,10 +165,13 @@ mark { background: #fff0b2; color: #332b15; border-radius: 3px; padding: .05em .
   .hero h1 { font-size: 24pt; }
   .hero, .pair, .overview-grid > div { border-radius: 0; }
   .pair { display: block; overflow: visible; }
-  .source, .annotation { padding: 16px; }
+  .source, .annotation, .visual-guides { padding: 16px; }
   .annotation { border-left: 0; border-top: 1px solid var(--border); }
   .section-head, h2, h3, .passage-label { break-after: avoid; }
   p, blockquote { orphans: 3; widows: 3; }
   mark { background: #eee; color: #111; font-weight: 650; }
   .katex-display { overflow: visible; }
+  .table-scroll { overflow: visible; }
+  .data-table { font-size: 9pt; }
+  .data-table tr { break-inside: avoid; }
 }

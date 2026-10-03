@@ -8,7 +8,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from generate import render_html
 
@@ -42,6 +42,46 @@ class Overview(BaseModel):
     limitations: list[str]
 
 
+class VisualGuide(BaseModel):
+    label: str = Field(
+        description="Exact figure/table label, e.g. Figure 2(b) or Table 1."
+    )
+    page: int = Field(
+        ge=0,
+        description="1-based PDF page index of the figure/table itself; 0 if uncertain.",
+    )
+    caption_en: str = Field(description="Original caption from the PDF.")
+    caption_zh: str = Field(
+        description="Traditional Chinese translation of the caption."
+    )
+    explanation: str = Field(description="Explain what this figure/table demonstrates.")
+    reading_tip: str = Field(
+        description="Explain how to read it: axes, symbols, metrics, or key comparisons."
+    )
+
+
+class TableGuide(VisualGuide):
+    headers: list[str] = Field(description="Original column names, in original order.")
+    rows: list[list[str]] = Field(
+        description="Complete data rows in original order, all values as strings. "
+        "Each row must have exactly as many cells as headers."
+    )
+    notes: str = Field(
+        description="Relevant table footnotes and transcription limitations in zh-TW. "
+        "Explain unreadable cells or flattened headers; empty string if none."
+    )
+
+    @model_validator(mode="after")
+    def check_rows(self):
+        if self.rows and (
+            not self.headers or any(len(row) != len(self.headers) for row in self.rows)
+        ):
+            raise ValueError("Table rows must match the number of headers.")
+        if not self.rows and not self.notes.strip():
+            raise ValueError("A table without data must explain why in notes.")
+        return self
+
+
 class Block(BaseModel):
     page: int = Field(
         description="1-based PDF page index. Use 0 only if genuinely uncertain."
@@ -71,6 +111,16 @@ class Block(BaseModel):
     )
     why_it_matters: str = Field(
         description="Why a thesis reader should care about this passage."
+    )
+    figures: list[VisualGuide] = Field(
+        default_factory=list,
+        description="Reading guides for important figures discussed in this passage. "
+        "Attach each figure only once, to the most relevant passage.",
+    )
+    tables: list[TableGuide] = Field(
+        default_factory=list,
+        description="Important tables discussed in this passage, including data and "
+        "reading guides. Attach each table only once, to the most relevant passage.",
     )
 
 
@@ -109,6 +159,26 @@ SYSTEM_PROMPT = r"""你是一位協助碩士生閱讀學術論文的研究助理
   重點片段不可切開 LaTeX 公式；若公式本身是重點，選取包含分隔符的完整公式。
 - 不自行發明引用、數值、資料集、實驗結果或作者主張。
 - 對不確定的資訊直接保守描述。
+
+圖表導讀：
+- 挑選支撐核心方法與結果的重要圖表，將 figures / tables 附在最直接討論它的 block。
+  同一圖表只收錄一次；優先放在 importance 4–5 的相關段落。沒有相關圖表時填空陣列。
+- label 保留論文原始編號（如 Figure 2、Figure 3(b)、Table 1、Table A.1）。
+  page 是圖表本身所在的 PDF 1-based 頁序，不是引用段落的頁碼；不確定才填 0。
+- caption_en 忠實保留原始圖說／表說，caption_zh 完整翻譯為繁體中文。
+- explanation 用 2–4 句說明圖表要表達的機制或結果，以及如何支撐相關段落。
+  reading_tip 按閱讀順序說明先看哪裡、座標軸／箭頭／顏色／指標的意義，
+  接著比較哪些曲線、列或欄，以及如何由觀察讀出結論；註明指標越高／越低越好、
+  比較成立的實驗條件與必要限定。架構圖則沿資料流說明各模組的輸入、處理與輸出。
+  讀者會用 label 與 page 對照原始 PDF；僅依可辨識的內容說明，不推測看不清的細節。
+- 表格資料直接放入 tables 的 headers / rows，保留原始欄列順序、單位、正負號、
+  小數位、±、↑↓、最佳值標記與必要註腳。所有儲存格都是字串，不四捨五入或計算替代值。
+  多層表頭用「群組 / 欄名」展平，跨列標籤重複填入以保留對應關係，並在 notes 說明。
+  保留原本缺值符號；無法辨識的儲存格填「無法辨識」，不要用 0 或原始缺值符號代替。
+  每列長度必須等於 headers 長度。收錄的表格保留全部資料列，不只挑有利的數值。
+- notes 以繁體中文保留解讀表格所需的註腳與轉寫限制，沒有時填空字串。
+  若無法可靠辨識整張表格或欄列結構，headers / rows 都填空陣列，在 notes 說明原因；
+  仍保留表號、頁碼及能確認的導讀，不捏造表格內容。
 """
 
 USER_PROMPT = """請把這篇論文整理成可供快速精讀的雙欄批註資料。
@@ -156,7 +226,7 @@ def main() -> None:
     )
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--model", default=os.getenv("OPENAI_MODEL", "gpt-5.6-terra"))
-    parser.add_argument("--detail", choices=["low", "auto", "high"], default="low")
+    parser.add_argument("--detail", choices=["low", "auto", "high"], default="high")
     parser.add_argument(
         "--reasoning",
         choices=["none", "low", "medium", "high", "xhigh", "max"],

@@ -39,6 +39,51 @@ def list_items(items: list[str]) -> str:
     return "".join(f"<li>{esc(item)}</li>" for item in items)
 
 
+def render_visual_guides(block: dict) -> str:
+    guides = []
+    for kind in ("figures", "tables"):
+        for guide in block.get(kind, []):
+            label = esc(guide["label"])
+            page = int(guide.get("page", 0))
+            location = f"原始 PDF 第 {page} 頁" if page else "原始 PDF 頁碼待確認"
+            captions = (
+                f'<span lang="en">{esc(guide["caption_en"])}</span>'
+                f"<span>{esc(guide['caption_zh'])}</span>"
+            )
+            content = f'<p class="visual-caption">{captions}</p>'
+            if kind == "tables" and guide.get("rows"):
+                headers = "".join(
+                    f'<th scope="col">{esc(cell)}</th>' for cell in guide["headers"]
+                )
+                rows = "".join(
+                    "<tr>" + "".join(f"<td>{esc(cell)}</td>" for cell in row) + "</tr>"
+                    for row in guide["rows"]
+                )
+                content = f"""<div class="table-scroll" tabindex="0" role="region" aria-label="{label} 資料表">
+  <table class="data-table">
+    <caption class="visual-caption">{captions}</caption>
+    <thead><tr>{headers}</tr></thead><tbody>{rows}</tbody>
+  </table>
+</div>"""
+            notes = (
+                f'<p class="table-notes"><strong>表格註記：</strong>{esc(guide["notes"])}</p>'
+                if guide.get("notes")
+                else ""
+            )
+            guides.append(f"""<section class="visual-guide">
+  <h3>{label}<span>{location}</span></h3>
+  {content}
+  {notes}
+  <div class="visual-explanation">
+    <div><h4>這張{"圖" if kind == "figures" else "表"}在說什麼</h4><p>{esc(guide["explanation"])}</p></div>
+    <div><h4>怎麼看</h4><p>{esc(guide["reading_tip"])}</p></div>
+  </div>
+</section>""")
+    if not guides:
+        return ""
+    return '<div class="visual-guides">' + "".join(guides) + "</div>"
+
+
 def render_html(paper: dict, out: Path) -> None:
     meta = paper["meta"]
     overview = paper["overview"]
@@ -76,6 +121,7 @@ def render_html(paper: dict, out: Path) -> None:
     <h3>為什麼值得看</h3>
     <p>{esc(block["why_it_matters"])}</p>
   </aside>
+  {render_visual_guides(block)}
 </article>""")
         sections_html.append(f"""
 <section class="reading-section" id="section-{index}" aria-labelledby="heading-{index}">

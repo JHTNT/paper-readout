@@ -12,6 +12,8 @@ Turn an academic PDF into a compact bilingual annotated reading page with the Op
 - static HTML with a 3+/4+/5 importance filter
 - fuller passages (usually 3–6 consecutive sentences) with bilingual key-phrase highlights
 - LaTeX equations rendered with KaTeX (pinned CDN assets; requires internet access)
+- figure guides with original figure labels, PDF page references, bilingual captions, and how-to-read explanations
+- important tables transcribed into HTML tables, with bilingual captions, reading guides, and table notes
 
 ## Setup
 
@@ -70,16 +72,37 @@ Use `\( ... \)` for inline math and `\[ ... \]` for display math in text fields
 including its delimiters, rather than part of it. Dollar signs remain plain text.
 If KaTeX cannot load or parse an expression, the formula remains readable as text.
 
-Longer excerpts, highlights, and LaTeX transcription require regenerating the
+Longer excerpts, highlights, LaTeX transcription, and figure/table guides require regenerating the
 annotations with `annotate.py`; rebuilding HTML alone does not enrich old JSON.
 
-For dense diagrams or tiny text:
+### Figure and table guides
+
+Each selected passage can include `figures` and `tables` arrays. Guides appear
+below that passage and follow its importance filter. Each important figure or
+table is attached once, to the most relevant passage; older JSON without these
+arrays still renders normally.
+
+Both types include `label` (the original figure/table number), `page` (the 1-based
+PDF page containing the visual, or 0 if uncertain), `caption_en`, `caption_zh`,
+`explanation` (what it demonstrates), and `reading_tip` (how to read it).
+Reading tips explain where to start, what axes/symbols/metrics mean, what to
+compare, and how to interpret the result. Use the figure label and page to
+consult the original PDF.
+
+Tables additionally contain `headers`, `rows` (arrays of strings), and `notes`.
+The API returns these directly within `paper.json` in the same annotation request.
+Column order, values, units, missing-value symbols, and relevant footnotes are
+preserved; multi-level headers are flattened with their group names. Unreadable
+cells are marked `無法辨識`. If the table structure cannot be transcribed reliably,
+the arrays are empty and `notes` explains why. Row widths are validated against
+the headers. Important numerical comparisons should still be checked in the PDF.
+
+The default is `--detail high` for dense diagrams, tables, and tiny text.
+To reduce PDF image token usage:
 
 ```bash
-python annotate.py paper.pdf --detail high
+python annotate.py paper.pdf --detail low
 ```
-
-The default is `--detail low` to reduce PDF image token usage.
 
 ## Design choices
 
