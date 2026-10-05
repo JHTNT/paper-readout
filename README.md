@@ -86,9 +86,19 @@ explanation), `paper_usage` (the meaning and role in this paper), and `page`
 
 Entries focus on uncommon technical terms, abbreviations, and ordinary words with
 special meanings in the paper. Unconfirmed expansions are left empty and explained
-in `paper_usage`. The glossary appears at the end of the page with a sidebar link,
-and stays available regardless of the passage importance filter. Missing or empty
-glossaries are omitted, so older JSON files remain compatible.
+in `paper_usage`. Glossary entries supply the explanations shown from the reading
+annotations. Missing or empty glossaries are omitted, so older JSON files remain
+compatible.
+
+Each excerpt block lists its matching glossary entries in a compact "本段名詞" row
+inside its reading annotations, once per entry. Matching checks terms, full names, and Chinese names in
+the passage, translation, annotations, and visual explanations. Hover over a term
+to show its explanation nearby; moving into the popup keeps it open, and leaving
+closes it. Clicking (or pressing Enter) keeps it open for touch and keyboard use;
+close it with Escape or a click outside. Matching is case
+sensitive, prefers longer names, avoids partial English words, and skips formulas.
+Existing highlights are preserved. Rebuild HTML with `generate.py` to enable this
+for existing JSON; keep the generated `glossary.js` beside the HTML and stylesheet.
 
 ### Figure and table guides
 

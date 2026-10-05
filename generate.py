@@ -88,7 +88,7 @@ def render_glossary(entries: list[dict]) -> str:
     if not entries:
         return ""
     items = []
-    for entry in entries:
+    for index, entry in enumerate(entries):
         page = int(entry.get("page", 0))
         location = f"原始 PDF 第 {page} 頁" if page else "原始 PDF 頁碼待確認"
         full_name = (
@@ -96,7 +96,7 @@ def render_glossary(entries: list[dict]) -> str:
             if entry.get("full_name")
             else ""
         )
-        items.append(f"""<div class="glossary-entry">
+        items.append(f"""<div class="glossary-entry" id="glossary-term-{index}">
   <dt><span lang="en">{esc(entry["term"])}</span><span class="term-zh">{esc(entry["zh"])}</span></dt>
   <dd>
     {full_name}
@@ -105,11 +105,7 @@ def render_glossary(entries: list[dict]) -> str:
     <p class="term-page">{location}</p>
   </dd>
 </div>""")
-    return f"""<section class="glossary" id="glossary" aria-labelledby="glossary-heading">
-  <h2 id="glossary-heading">名詞解釋</h2>
-  <p class="glossary-intro">專有名詞、縮寫與本文中的特殊用法，共 {len(entries)} 個詞條。</p>
-  <dl class="glossary-list">{"".join(items)}</dl>
-</section>"""
+    return f'<template id="glossary-data"><dl>{"".join(items)}</dl></template>'
 
 
 def render_generation(generation: dict) -> str:
@@ -137,8 +133,13 @@ def render_html(paper: dict, out: Path) -> None:
     overview = paper["overview"]
     authors = ", ".join(meta.get("authors", []))
     glossary_html = render_glossary(paper.get("glossary", []))
-    glossary_link = (
-        '<a class="overview-link glossary-link" href="#glossary">名詞解釋 <span aria-hidden="true">↗</span></a>'
+    glossary_panel = (
+        """<aside class="term-panel" id="term-panel" aria-labelledby="term-panel-heading" tabindex="-1" hidden>
+  <div class="term-panel-header">
+    <h2 id="term-panel-heading">名詞解釋</h2>
+  </div>
+  <dl class="term-panel-content"></dl>
+</aside>"""
         if glossary_html
         else ""
     )
@@ -206,7 +207,6 @@ def render_html(paper: dict, out: Path) -> None:
 <aside class="sidebar">
   <nav class="contents" aria-label="章節目錄">
     <a class="overview-link" href="#overview">論文總覽 <span aria-hidden="true">↗</span></a>
-    {glossary_link}
     <details open>
       <summary>章節導覽 <span>{len(contents)} 個章節</span></summary>
       <ol>{"".join(contents)}</ol>
@@ -250,6 +250,8 @@ def render_html(paper: dict, out: Path) -> None:
 {glossary_html}
 </main>
 </div>
+{glossary_panel}
+{'<script defer src="glossary.js"></script>' if glossary_html else ""}
 <script>
 const contents = document.querySelector('.contents details');
 const desktop = window.matchMedia('(min-width: 1100px)');
@@ -281,6 +283,11 @@ filter(4);
     target = out.with_name("style.css")
     if stylesheet.resolve() != target.resolve():
         shutil.copy2(stylesheet, target)
+    if glossary_html:
+        script = Path(__file__).with_name("glossary.js")
+        script_target = out.with_name("glossary.js")
+        if script.resolve() != script_target.resolve():
+            shutil.copy2(script, script_target)
 
 
 def main() -> None:

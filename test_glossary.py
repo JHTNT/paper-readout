@@ -19,13 +19,13 @@ class GlossaryTests(unittest.TestCase):
             render_html(self.paper, out)
             return out.read_text("utf-8")
 
-    def test_glossary_has_navigation_and_is_outside_filtered_passages(self):
+    def test_glossary_data_and_popup_are_available(self):
         Paper.model_validate(self.paper)
         doc = self.render()
-        self.assertIn('href="#glossary"', doc)
-        self.assertIn('aria-labelledby="glossary-heading"', doc)
-        self.assertIn('class="glossary" id="glossary"', doc)
-        self.assertGreater(doc.index('id="glossary"'), doc.rindex("</article>"))
+        self.assertIn('<template id="glossary-data">', doc)
+        self.assertIn('id="glossary-term-0"', doc)
+        self.assertIn('id="term-panel"', doc)
+        self.assertIn('src="glossary.js"', doc)
         self.assertEqual(doc.count('class="reading-section"'), 1)
         self.assertEqual(doc.count('class="pair"'), 1)
         self.assertIn("白話解釋", doc)
@@ -44,6 +44,8 @@ class GlossaryTests(unittest.TestCase):
                 doc = self.render()
                 self.assertNotIn('href="#glossary"', doc)
                 self.assertNotIn('id="glossary"', doc)
+                self.assertNotIn('id="term-panel"', doc)
+                self.assertNotIn('src="glossary.js"', doc)
                 self.assertIn('class="reading-section"', doc)
 
     def test_contextual_term_without_expansion_and_unknown_page(self):
