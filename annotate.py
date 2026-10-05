@@ -3,8 +3,10 @@ import argparse
 import json
 import logging
 import os
+import sys
 from enum import Enum
 from pathlib import Path
+from time import monotonic
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -226,9 +228,17 @@ USER_PROMPT = """請把這篇論文整理成可供快速精讀的雙欄批註資
 """
 
 
-def annotate(pdf: Path, model: str, detail: str, reasoning_effort: str) -> Paper:
+def annotate(
+    pdf: Path,
+    model: str,
+    detail: str,
+    reasoning_effort: str,
+    *,
+    generation: dict | None = None,
+) -> Paper:
     client = OpenAI()
-    uploaded = client.files.create(file=pdf.open("rb"), purpose="user_data")
+    with pdf.open("rb") as file:
+        uploaded = client.files.create(file=file, purpose="user_data")
     try:
         response = client.responses.parse(
             model=model,
@@ -251,6 +261,15 @@ def annotate(pdf: Path, model: str, detail: str, reasoning_effort: str) -> Paper
         )
         if response.output_parsed is None:
             raise RuntimeError("Model did not return a parsed paper annotation.")
+        if generation is not None:
+            generation.update(
+                model=response.model,
+                reasoning=reasoning_effort,
+                detail=detail,
+                usage=response.usage.model_dump(mode="json")
+                if response.usage
+                else None,
+            )
         return response.output_parsed
     finally:
         try:
@@ -288,21 +307,28 @@ def main() -> None:
             "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key."
         )
 
-    paper = annotate(args.pdf, args.model, args.detail, args.reasoning)
+    started = monotonic()
+    generation = {}
+    paper = annotate(
+        args.pdf, args.model, args.detail, args.reasoning, generation=generation
+    )
+    data = paper.model_dump(mode="json")
+    data["generation"] = generation
     out_dir = args.out / args.pdf.stem
     out_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = out_dir / "paper.json"
     json_path.write_text(
-        json.dumps(paper.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        json.dumps(data, ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
 
     html_path = out_dir / "paper.html"
-    render_html(paper.model_dump(mode="json"), html_path)
+    render_html(data, html_path)
 
     print(json_path)
     print(html_path)
+    print(f"總耗時：{monotonic() - started:.1f}s", file=sys.stderr)
 
 
 if __name__ == "__main__":

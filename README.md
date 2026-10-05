@@ -123,6 +123,15 @@ python annotate.py paper.pdf --detail low
 
 ## Design choices
 
+After completion, the terminal shows total elapsed time, including PDF upload,
+the API response, cleanup, and JSON/HTML output.
+
+New annotations store the API-reported model and token usage in `paper.json` under
+`generation`. The webpage displays the model and input/output/total token counts
+below the title, alongside the requested REASONING and DETAIL values.
+Output tokens include reasoning tokens; cached input and reasoning
+breakdowns remain available in JSON. Older JSON without this metadata omits the row.
+
 The model selects only passages worth revisiting instead of translating every paragraph. `paper.json` is the durable data layer; `generate.py` is deliberately plain stdlib HTML generation so the page can change without re-running the API.
 
 Current MVP intentionally skips Zotero integration, RAG/vector databases, figure extraction, and writing annotations back into the PDF.

@@ -112,6 +112,26 @@ def render_glossary(entries: list[dict]) -> str:
 </section>"""
 
 
+def render_generation(generation: dict) -> str:
+    if not generation:
+        return ""
+    items = [f"模型：{esc(generation['model'])}"]
+    for key in ("reasoning", "detail"):
+        if key in generation:
+            items.append(f"{key.upper()}：{esc(generation[key])}")
+    usage = generation.get("usage")
+    if usage is not None:
+        for key, label in (
+            ("input_tokens", "輸入"),
+            ("output_tokens", "輸出"),
+            ("total_tokens", "總計"),
+        ):
+            items.append(f"{label}：{int(usage[key]):,} tokens")
+    else:
+        items.append("Token 用量：未提供")
+    return f'<p aria-label="生成資訊">{" · ".join(items)}</p>'
+
+
 def render_html(paper: dict, out: Path) -> None:
     meta = paper["meta"]
     overview = paper["overview"]
@@ -200,6 +220,7 @@ def render_html(paper: dict, out: Path) -> None:
   <p class="eyebrow">RESEARCH NOTE <span>雙語閱讀 · 重點批註</span></p>
   <h1>{esc(meta["title"])}</h1>
   <div class="paper-meta"><span>{esc(authors)}</span><span>{esc(meta.get("venue"))}</span><span>{esc(meta.get("year"))}</span></div>
+  {render_generation(paper.get("generation", {}))}
 </header>
 
 <section class="overview" id="overview" aria-label="論文總覽">
