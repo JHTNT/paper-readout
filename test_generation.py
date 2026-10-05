@@ -82,8 +82,14 @@ class GenerationTests(unittest.TestCase):
             self.assertIn("actual-model-version", html)
             self.assertIn("REASONING：medium", html)
             self.assertIn("DETAIL：low", html)
-            for count in ("1,200", "300", "1,500"):
-                self.assertIn(f"{count} tokens", html)
+            for label, count in (
+                ("輸入", "1,200"),
+                ("輸出", "300"),
+                ("思考", "200"),
+                ("其他輸出", "100"),
+                ("總計", "1,500"),
+            ):
+                self.assertIn(f"{label}：{count} tokens", html)
             client.files.delete.assert_called_once_with("file-test")
 
     def test_missing_usage_is_not_displayed_as_zero(self):
@@ -96,6 +102,36 @@ class GenerationTests(unittest.TestCase):
         html = render_generation({"model": "<script>bad</script>", "usage": None})
         self.assertNotIn("<script>", html)
         self.assertIn("&lt;script&gt;", html)
+
+    def test_missing_reasoning_breakdown_does_not_guess(self):
+        usage = {"input_tokens": 100, "output_tokens": 50, "total_tokens": 150}
+        for details in (None, {}, {"reasoning_tokens": None}):
+            with self.subTest(details=details):
+                html = render_generation(
+                    {
+                        "model": "model",
+                        "usage": {**usage, "output_tokens_details": details},
+                    }
+                )
+                self.assertIn("輸出：50 tokens", html)
+                self.assertIn("思考：未提供", html)
+                self.assertNotIn("其他輸出：", html)
+
+    def test_zero_reasoning_is_a_valid_breakdown(self):
+        html = render_generation(
+            {
+                "model": "model",
+                "usage": {
+                    "input_tokens": 100,
+                    "output_tokens": 50,
+                    "total_tokens": 150,
+                    "output_tokens_details": {"reasoning_tokens": 0},
+                },
+            }
+        )
+        self.assertIn("思考：0 tokens", html)
+        self.assertIn("其他輸出：50 tokens", html)
+        self.assertIn("總計：150 tokens", html)
 
 
 if __name__ == "__main__":

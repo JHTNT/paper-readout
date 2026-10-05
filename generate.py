@@ -123,6 +123,17 @@ def render_generation(generation: dict) -> str:
             ("total_tokens", "總計"),
         ):
             items.append(f"{label}：{int(usage[key]):,} tokens")
+            if key == "output_tokens":
+                reasoning_tokens = (usage.get("output_tokens_details") or {}).get(
+                    "reasoning_tokens"
+                )
+                if reasoning_tokens is None:
+                    items.append("思考：未提供")
+                else:
+                    reasoning_tokens = int(reasoning_tokens)
+                    other_tokens = int(usage[key]) - reasoning_tokens
+                    items.append(f"思考：{reasoning_tokens:,} tokens")
+                    items.append(f"其他輸出：{other_tokens:,} tokens")
     else:
         items.append("Token 用量：未提供")
     return f'<p aria-label="生成資訊">{" · ".join(items)}</p>'
