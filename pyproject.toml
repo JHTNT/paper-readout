@@ -10,5 +10,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "playwright>=1.63.0",
     "ruff>=0.16.10",
 ]

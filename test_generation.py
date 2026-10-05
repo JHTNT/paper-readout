@@ -11,7 +11,7 @@ from openai.types.responses import ResponseUsage
 
 from annotate import Paper, main
 from generate import render_generation, render_html
-from test_visual_guides import example_paper
+from test_support import example_paper
 
 
 class GenerationTests(unittest.TestCase):
@@ -36,7 +36,12 @@ class GenerationTests(unittest.TestCase):
             pdf.write_bytes(b"mock PDF")
             with (
                 patch("annotate.OpenAI", return_value=client),
-                patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}),
+                patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True),
+                patch(
+                    "socket.socket.connect",
+                    side_effect=AssertionError("Unexpected network request"),
+                ),
+                patch("annotate.monotonic", side_effect=[100.0, 112.3]),
                 patch(
                     "sys.argv",
                     [
@@ -44,6 +49,8 @@ class GenerationTests(unittest.TestCase):
                         str(pdf),
                         "--out",
                         str(root),
+                        "--model",
+                        "requested-model",
                         "--reasoning",
                         "medium",
                         "--detail",
@@ -51,9 +58,18 @@ class GenerationTests(unittest.TestCase):
                     ],
                 ),
                 redirect_stdout(io.StringIO()),
-                redirect_stderr(io.StringIO()),
+                redirect_stderr(io.StringIO()) as stderr,
             ):
                 main()
+            self.assertEqual(stderr.getvalue(), "總耗時：12.3s\n")
+            client.responses.parse.assert_called_once()
+            request = client.responses.parse.call_args.kwargs
+            self.assertEqual(request["model"], "requested-model")
+            self.assertEqual(request["reasoning"], {"effort": "medium"})
+            self.assertEqual(
+                request["input"][1]["content"][0],
+                {"type": "input_file", "file_id": "file-test", "detail": "low"},
+            )
             data = json.loads((root / "test" / "paper.json").read_text("utf-8"))
             self.assertEqual(data["generation"]["model"], "actual-model-version")
             self.assertEqual(data["generation"]["usage"], usage.model_dump())

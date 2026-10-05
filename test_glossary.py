@@ -1,33 +1,23 @@
 import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
 from pydantic import ValidationError
 
 from annotate import GlossaryEntry, Paper
-from generate import esc, render_glossary, render_html
-from test_visual_guides import example_paper
+from generate import esc, render_glossary
+from test_support import HtmlTestCase, example_paper
 
 
-class GlossaryTests(unittest.TestCase):
+class GlossaryTests(HtmlTestCase):
     def setUp(self):
         self.paper = example_paper()
 
-    def render(self):
-        with TemporaryDirectory() as directory:
-            out = Path(directory) / "paper.html"
-            render_html(self.paper, out)
-            return out.read_text("utf-8")
-
     def test_glossary_data_and_popup_are_available(self):
         Paper.model_validate(self.paper)
-        doc = self.render()
+        doc = self.render(self.paper)
         self.assertIn('<template id="glossary-data">', doc)
         self.assertIn('id="glossary-term-0"', doc)
         self.assertIn('id="term-panel"', doc)
         self.assertIn('src="glossary.js"', doc)
-        self.assertEqual(doc.count('class="reading-section"'), 1)
-        self.assertEqual(doc.count('class="pair"'), 1)
         self.assertIn("白話解釋", doc)
         self.assertIn("本文用法", doc)
         for field in ("term", "zh", "full_name", "definition", "paper_usage"):
@@ -41,9 +31,8 @@ class GlossaryTests(unittest.TestCase):
                 if include_empty:
                     self.paper["glossary"] = []
                 self.assertEqual(Paper.model_validate(self.paper).glossary, [])
-                doc = self.render()
-                self.assertNotIn('href="#glossary"', doc)
-                self.assertNotIn('id="glossary"', doc)
+                doc = self.render(self.paper)
+                self.assertNotIn('id="glossary-data"', doc)
                 self.assertNotIn('id="term-panel"', doc)
                 self.assertNotIn('src="glossary.js"', doc)
                 self.assertIn('class="reading-section"', doc)

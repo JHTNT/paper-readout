@@ -59,6 +59,27 @@ output/<paper-name>/
 
 Open `paper.html` in a browser.
 
+## Tests
+
+Install development dependencies and the test browser once:
+
+```bash
+uv sync
+uv run playwright install chromium
+```
+
+Run all Python and browser tests with one command:
+
+```bash
+uv run python -m unittest discover -v
+```
+
+Browser tests use generated local HTML and block external requests. API tests use
+mock responses. To reuse an installed Edge browser instead of downloading Chromium,
+set `TEST_BROWSER_CHANNEL=msedge` (PowerShell: `$env:TEST_BROWSER_CHANNEL = "msedge"`).
+
+## Rebuild HTML
+
 To rebuild an existing JSON file's HTML and stylesheet without calling the API:
 
 ```bash

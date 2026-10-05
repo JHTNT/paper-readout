@@ -149,7 +149,7 @@
   });
   window.addEventListener('resize', positionPanel);
   window.addEventListener('scroll', event => {
-    if (panel.contains(event.target)) return;
+    if (panel.hidden || panel.contains(event.target)) return;
     if (pinned) positionPanel();
     else dismiss();
   }, true);
