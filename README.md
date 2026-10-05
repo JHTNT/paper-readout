@@ -112,7 +112,9 @@ cells are marked `無法辨識`. If the table structure cannot be transcribed re
 the arrays are empty and `notes` explains why. Row widths are validated against
 the headers. Important numerical comparisons should still be checked in the PDF.
 
-The default is `--detail high` for dense diagrams, tables, and tiny text.
+Set `OPENAI_DETAIL=low`, `auto`, or `high` in `.env` to choose the default PDF
+detail level. The default is `high` for dense diagrams, tables, and tiny text.
+The `--detail` argument overrides this setting.
 To reduce PDF image token usage:
 
 ```bash

@@ -265,7 +265,11 @@ def main() -> None:
     )
     parser.add_argument("pdf", type=Path)
     parser.add_argument("--model", default=os.getenv("OPENAI_MODEL", "gpt-5.6-terra"))
-    parser.add_argument("--detail", choices=["low", "auto", "high"], default="high")
+    parser.add_argument(
+        "--detail",
+        choices=["low", "auto", "high"],
+        default=os.getenv("OPENAI_DETAIL", "high"),
+    )
     parser.add_argument(
         "--reasoning",
         choices=["none", "low", "medium", "high", "xhigh", "max"],
@@ -273,6 +277,9 @@ def main() -> None:
     )
     parser.add_argument("--out", type=Path, default=Path("output"))
     args = parser.parse_args()
+
+    if args.detail not in ("low", "auto", "high"):
+        parser.error("OPENAI_DETAIL must be low, auto, or high")
 
     if args.pdf.suffix.lower() != ".pdf" or not args.pdf.is_file():
         parser.error("pdf must point to an existing .pdf file")
