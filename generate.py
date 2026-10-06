@@ -116,27 +116,34 @@ def render_generation(generation: dict) -> str:
         if key in generation:
             items.append(f"{key.upper()}：{esc(generation[key])}")
     usage = generation.get("usage")
+    token_items = []
     if usage is not None:
         for key, label in (
             ("input_tokens", "輸入"),
             ("output_tokens", "輸出"),
             ("total_tokens", "總計"),
         ):
-            items.append(f"{label}：{int(usage[key]):,} tokens")
+            token_item = f"{label}：{int(usage[key]):,} tokens"
             if key == "output_tokens":
                 reasoning_tokens = (usage.get("output_tokens_details") or {}).get(
                     "reasoning_tokens"
                 )
                 if reasoning_tokens is None:
-                    items.append("思考：未提供")
+                    token_item += "（思考：未提供）"
                 else:
                     reasoning_tokens = int(reasoning_tokens)
                     other_tokens = int(usage[key]) - reasoning_tokens
-                    items.append(f"思考：{reasoning_tokens:,} tokens")
-                    items.append(f"其他輸出：{other_tokens:,} tokens")
+                    token_item += (
+                        f"（思考：{reasoning_tokens:,} tokens、"
+                        f"其他輸出：{other_tokens:,} tokens）"
+                    )
+            token_items.append(token_item)
     else:
-        items.append("Token 用量：未提供")
-    return f'<p aria-label="生成資訊">{" · ".join(items)}</p>'
+        token_items.append("Token 用量：未提供")
+    return (
+        f'<p aria-label="生成資訊">{" · ".join(items)}<br>'
+        f'{" · ".join(token_items)}</p>'
+    )
 
 
 def render_html(paper: dict, out: Path) -> None:
