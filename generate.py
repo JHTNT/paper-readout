@@ -177,7 +177,7 @@ def render_html(paper: dict, out: Path) -> None:
             blocks.append(f"""
 <article class="pair" data-importance="{importance}">
   <div class="source">
-    <div class="meta-row"><span>{esc(page_label)}</span><span>重要度 {importance}/5</span></div>
+    <div class="meta-row"><span>{esc(page_label)}</span></div>
     <div class="original">
       <p class="passage-label">原文 <span lang="en">SOURCE</span></p>
       <blockquote lang="en">{highlighted(block["en"], block.get("en_highlights", []))}</blockquote>
@@ -256,9 +256,9 @@ def render_html(paper: dict, out: Path) -> None:
 <div class="toolbar">
   <div class="filter-controls" role="group" aria-label="重要度篩選">
     <span class="filter-label">重要度</span>
-    <button type="button" data-min="3" aria-pressed="false">3+ 補充</button>
-    <button type="button" data-min="4" aria-pressed="true" class="active">4+ 重點</button>
-    <button type="button" data-min="5" aria-pressed="false">5 核心</button>
+    <button type="button" data-min="3" aria-pressed="false">補充</button>
+    <button type="button" data-min="4" aria-pressed="true" class="active">重點</button>
+    <button type="button" data-min="5" aria-pressed="false">核心</button>
   </div>
   <span class="readout-count" role="status" aria-live="polite"></span>
   <a class="back-to-top" href="#top">回到頂端 ↑</a>

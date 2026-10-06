@@ -159,7 +159,7 @@ class GlossaryBrowserTests(unittest.TestCase):
         )
         self.page.mouse.click(1, 1)
         expect(self.panel).to_be_hidden()
-        self.page.get_by_role("button", name="5 核心", exact=True).click()
+        self.page.get_by_role("button", name="核心", exact=True).click()
         expect(self.first).to_be_hidden()
         expect(
             self.page.locator(".pair").nth(1).locator(".block-terms")
