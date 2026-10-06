@@ -3,7 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from annotate import Block, Paper
-from generate import esc, highlighted, render_html
+from generate import esc, highlighted, render_html, render_identifiers
 from test_support import HtmlTestCase, example_paper
 
 
@@ -70,6 +70,28 @@ class ReadoutTests(HtmlTestCase):
                         out.with_name(name).read_bytes(),
                         Path(__file__).with_name(name).read_bytes(),
                     )
+
+    def test_shared_assets_work_with_relative_encoded_paths(self):
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            assets = root / "assets #"
+            out = root / "paper" / "paper.html"
+            out.parent.mkdir()
+            render_html(self.paper, out, asset_dir=assets)
+            doc = out.read_text("utf-8")
+            self.assertIn('href="../assets%20%23/style.css"', doc)
+            self.assertIn('src="../assets%20%23/glossary.js"', doc)
+            self.assertTrue((assets / "style.css").is_file())
+            self.assertTrue((assets / "glossary.js").is_file())
+            self.assertFalse((out.parent / "style.css").exists())
+            self.assertFalse((out.parent / "glossary.js").exists())
+
+    def test_identifier_links_escape_and_normalize(self):
+        doc = render_identifiers({"doi": "https://doi.org/10.1234/ABC<>&", "arxiv_id": "arXiv:2307.08691v2"})
+        self.assertIn("10.1234/abc%3C%3E%26", doc)
+        self.assertIn("10.1234/abc&lt;&gt;&amp;", doc)
+        self.assertIn("https://arxiv.org/abs/2307.08691v2", doc)
+        self.assertEqual(render_identifiers({"doi": "not a DOI"}), "")
 
 
 if __name__ == "__main__":

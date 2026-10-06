@@ -2,6 +2,7 @@ import io
 import json
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -11,6 +12,7 @@ from openai.types.responses import ResponseUsage
 
 from annotate import Paper, main
 from generate import render_generation, render_html
+from identity import paper_identity
 from test_support import example_paper
 
 
@@ -42,6 +44,7 @@ class GenerationTests(unittest.TestCase):
                     side_effect=AssertionError("Unexpected network request"),
                 ),
                 patch("annotate.monotonic", side_effect=[100.0, 112.3]),
+                patch("annotate.datetime") as clock,
                 patch(
                     "sys.argv",
                     [
@@ -60,6 +63,7 @@ class GenerationTests(unittest.TestCase):
                 redirect_stdout(io.StringIO()),
                 redirect_stderr(io.StringIO()) as stderr,
             ):
+                clock.now.return_value = datetime(2026, 10, 5, 18, 30, tzinfo=UTC)
                 main()
             self.assertEqual(stderr.getvalue(), "總耗時：12.3s\n")
             client.responses.parse.assert_called_once()
@@ -70,11 +74,15 @@ class GenerationTests(unittest.TestCase):
                 request["input"][1]["content"][0],
                 {"type": "input_file", "file_id": "file-test", "detail": "low"},
             )
-            data = json.loads((root / "test" / "paper.json").read_text("utf-8"))
+            paper_id = paper_identity(pdf, {})["id"]
+            data = json.loads((root / paper_id / "paper.json").read_text("utf-8"))
             self.assertEqual(data["generation"]["model"], "actual-model-version")
             self.assertEqual(data["generation"]["usage"], usage.model_dump())
             self.assertEqual(data["generation"]["reasoning"], "medium")
             self.assertEqual(data["generation"]["detail"], "low")
+            self.assertEqual(
+                data["generation"]["generated_at"], "2026-10-05T18:30:00+00:00"
+            )
             self.assertNotIn("generation", Paper.model_json_schema()["properties"])
             rebuilt = root / "rebuilt.html"
             render_html(data, rebuilt)

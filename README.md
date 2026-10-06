@@ -51,13 +51,120 @@ python annotate.py paper.pdf --reasoning max
 Output:
 
 ```text
-output/<paper-name>/
+output/pdf-<first-24-sha256-digits>/
 ├── paper.json
-├── paper.html
-└── style.css
+└── paper.html
 ```
 
+All reading pages share `output/assets/style.css` and
+`output/assets/glossary.js`. Keep the `assets/` directory with the collection
+when moving or sharing it.
+
+The ID is computed from the PDF's bytes, independently of its filename, title,
+or model response. Re-running the exact same PDF updates the same JSON/HTML and
+published URL. Different PDF bytes produce separate entries, including different
+versions or re-exported copies of the same paper. The full SHA-256 and original
+filename are saved in `paper.json` under `source`.
+
+The model extracts this paper's DOI and arXiv ID only when confirmed in the PDF;
+these appear as labels and original-paper links, and do not affect the output ID.
+You can supply them explicitly when needed:
+
+```bash
+uv run python annotate.py paper.pdf --doi "10.1234/example"
+uv run python annotate.py paper.pdf --arxiv-id "2307.08691v1"
+```
+
+Old JSON files without identifiers still render and publish normally.
+
 Open `paper.html` in a browser.
+
+## Public reading library (one command)
+
+With Cloudflare Pages configured, the same command generates the annotation,
+rebuilds a library homepage for all saved papers, publishes it, and prints the
+homepage and current paper URLs:
+
+```bash
+uv run python annotate.py path/to/paper.pdf
+```
+
+One-time setup (requires a Cloudflare account and Node.js/npm):
+
+```bash
+npx --yes wrangler@4 login
+npx --yes wrangler@4 pages project create YOUR_PROJECT_NAME --production-branch main
+```
+
+Choose a unique lowercase project name, then add it to `.env`:
+
+```env
+CLOUDFLARE_PAGES_PROJECT=YOUR_PROJECT_NAME
+```
+
+Your homepage is normally `https://YOUR_PROJECT_NAME.pages.dev/`, with each paper
+at `/pdf-FINGERPRINT/paper.html`. If Cloudflare assigns a different domain or you use
+a custom domain, also set `CLOUDFLARE_PAGES_URL=https://YOUR_ACTUAL_DOMAIN`.
+See [Cloudflare's Direct Upload documentation](https://developers.cloudflare.com/pages/get-started/direct-upload/).
+
+Each publication fetches the current cloud `library.json`, merges this computer's
+local annotations, and rebuilds the complete website in a temporary directory.
+The public manifest stores the generated paper data so the next computer can
+retain every existing page without synchronising local `output/` directories.
+The PDF itself is not uploaded. Wrangler reuses unchanged uploaded assets.
+
+Two computers can publish **in turn** to the same Pages project. Wait for one
+publication to finish before starting the next; simultaneous publications are
+not supported. Removing a local paper does not remove it from the website.
+The small `output/.publish-state.json` records what this computer last published,
+so an unchanged old local annotation does not overwrite a newer cloud annotation.
+New annotations explicitly replace the same PDF ID, including on publication retry.
+If an unfamiliar local copy conflicts with the cloud copy, publication stops;
+choose the local copy explicitly with `uv run python publish.py --replace PAPER_ID`.
+
+To remove a paper from the website, use its ID from the URL or output folder:
+
+```bash
+uv run python publish.py --delete pdf-FINGERPRINT
+# Multiple papers in one publication:
+uv run python publish.py --delete pdf-FIRST --delete pdf-SECOND
+```
+
+This removes the paper from the list and current deployment while keeping local
+files. The cloud manifest retains only a deletion marker for that ID, so stale
+copies on either computer cannot add it back during ordinary publication. Both
+computers must use the updated publisher. To restore it explicitly, regenerate
+the same PDF or run `uv run python publish.py --replace PAPER_ID` with a local copy.
+Failed deletions can be retried with `uv run python publish.py`.
+An older failed publication cannot undo a deletion completed afterwards by the
+other computer; issue a fresh `--replace` or regenerate to restore that paper.
+
+The compact homepage shows the annotation update date and time (YYYY-MM-DD HH:mm)
+in Taiwan time (UTC+8), using the generation-completion timestamp saved in
+`paper.json` under `generation.generated_at`. The most recently generated
+annotations appear first. Republishing, moving files, or restoring a saved copy
+does not change this timestamp; generating a new annotation does. Legacy cloud
+entries retain their existing recorded times; legacy local files without this
+field fall back to the JSON modification time until regenerated.
+
+The first publication after upgrading must run on the computer with all papers
+currently on the old HTML-only site. Afterwards, either computer can publish its
+own subset. Use the stable production or custom domain in `CLOUDFLARE_PAGES_URL`,
+not a deployment hash URL. Cloud read failures stop publication and retain local
+files. The manifest is subject to Pages' 25 MiB per-file limit.
+
+If publishing fails, the new local JSON and HTML are kept and the command exits
+with an error. Retry publishing without paying for another annotation request:
+
+```bash
+uv run python publish.py
+# For a custom output collection:
+uv run python publish.py --out path/to/output
+```
+
+Leave `CLOUDFLARE_PAGES_PROJECT` empty to keep generating locally, or use
+`--no-publish` for a single local run. Login and project creation are needed only
+once; subsequent annotation runs deploy automatically.
 
 ## Tests
 
@@ -83,7 +190,9 @@ set `TEST_BROWSER_CHANNEL=msedge` (PowerShell: `$env:TEST_BROWSER_CHANNEL = "mse
 To rebuild an existing JSON file's HTML and stylesheet without calling the API:
 
 ```bash
-python generate.py output/2307.08691v1/paper.json
+python generate.py output/pdf-FINGERPRINT/paper.json
+# Reuse the collection's shared assets:
+uv run python generate.py output/pdf-FINGERPRINT/paper.json --assets output/assets
 ```
 
 Each block may contain `en_highlights` and `zh_highlights`: arrays of exact
@@ -119,7 +228,8 @@ closes it. Clicking (or pressing Enter) keeps it open for touch and keyboard use
 close it with Escape or a click outside. Matching is case
 sensitive, prefers longer names, avoids partial English words, and skips formulas.
 Existing highlights are preserved. Rebuild HTML with `generate.py` to enable this
-for existing JSON; keep the generated `glossary.js` beside the HTML and stylesheet.
+for existing JSON. Keep the generated CSS/JS at the paths referenced by the HTML;
+annotation and publication use one shared `assets/` directory.
 
 ### Figure and table guides
 

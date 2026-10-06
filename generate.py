@@ -2,9 +2,13 @@
 import argparse
 import html
 import json
+import os
 import re
 import shutil
 from pathlib import Path
+from urllib.parse import quote
+
+from identity import normalize_arxiv, normalize_doi
 
 
 def esc(value) -> str:
@@ -109,7 +113,7 @@ def render_glossary(entries: list[dict]) -> str:
 
 
 def render_generation(generation: dict) -> str:
-    if not generation:
+    if not generation.get("model"):
         return ""
     items = [f"模型：{esc(generation['model'])}"]
     for key in ("reasoning", "detail"):
@@ -146,7 +150,21 @@ def render_generation(generation: dict) -> str:
     )
 
 
-def render_html(paper: dict, out: Path) -> None:
+def render_identifiers(meta: dict) -> str:
+    links = []
+    doi = normalize_doi(meta.get("doi", ""))
+    arxiv = normalize_arxiv(meta.get("arxiv_id", ""))
+    if doi:
+        links.append(f'<a href="https://doi.org/{quote(doi, safe="/")}">DOI：{esc(doi)}</a>')
+    if arxiv:
+        links.append(f'<a href="https://arxiv.org/abs/{quote(arxiv, safe="/")}">arXiv：{esc(arxiv)}</a>')
+    return f'<p class="paper-meta">{" · ".join(links)}</p>' if links else ""
+
+
+def render_html(paper: dict, out: Path, *, asset_dir: Path | None = None) -> None:
+    asset_dir = asset_dir or out.parent
+    asset_prefix = Path(os.path.relpath(asset_dir, out.parent)).as_posix()
+    asset_prefix = "" if asset_prefix == "." else quote(asset_prefix, safe="/") + "/"
     meta = paper["meta"]
     overview = paper["overview"]
     authors = ", ".join(meta.get("authors", []))
@@ -213,7 +231,7 @@ def render_html(paper: dict, out: Path) -> None:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{esc(meta["title"])}</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="{asset_prefix}style.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/auto-render.min.js"
@@ -238,6 +256,7 @@ def render_html(paper: dict, out: Path) -> None:
   <p class="eyebrow">RESEARCH NOTE <span>雙語閱讀 · 重點批註</span></p>
   <h1>{esc(meta["title"])}</h1>
   <div class="paper-meta"><span>{esc(authors)}</span><span>{esc(meta.get("venue"))}</span><span>{esc(meta.get("year"))}</span></div>
+  {render_identifiers({**meta, **paper.get("source", {})})}
   {render_generation(paper.get("generation", {}))}
 </header>
 
@@ -269,7 +288,7 @@ def render_html(paper: dict, out: Path) -> None:
 </main>
 </div>
 {glossary_panel}
-{'<script defer src="glossary.js"></script>' if glossary_html else ""}
+{f'<script defer src="{asset_prefix}glossary.js"></script>' if glossary_html else ""}
 <script>
 const contents = document.querySelector('.contents details');
 const desktop = window.matchMedia('(min-width: 1100px)');
@@ -297,13 +316,14 @@ filter(4);
 </body>
 </html>"""
     out.write_text(doc, encoding="utf-8")
+    asset_dir.mkdir(parents=True, exist_ok=True)
     stylesheet = Path(__file__).with_name("style.css")
-    target = out.with_name("style.css")
+    target = asset_dir / "style.css"
     if stylesheet.resolve() != target.resolve():
         shutil.copy2(stylesheet, target)
     if glossary_html:
         script = Path(__file__).with_name("glossary.js")
-        script_target = out.with_name("glossary.js")
+        script_target = asset_dir / "glossary.js"
         if script.resolve() != script_target.resolve():
             shutil.copy2(script, script_target)
 
@@ -312,10 +332,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Render paper.json as HTML.")
     parser.add_argument("json_file", type=Path)
     parser.add_argument("--out", type=Path)
+    parser.add_argument("--assets", type=Path, help="Use a shared CSS/JS directory.")
     args = parser.parse_args()
     out = args.out or args.json_file.with_suffix(".html")
     paper = json.loads(args.json_file.read_text(encoding="utf-8"))
-    render_html(paper, out)
+    render_html(paper, out, asset_dir=args.assets)
     print(out)
 
 

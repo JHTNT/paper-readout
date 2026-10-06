@@ -4,15 +4,20 @@ import json
 import logging
 import os
 import sys
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from time import monotonic
+from urllib.parse import quote
 
 from dotenv import load_dotenv
 from openai import OpenAI
 from pydantic import BaseModel, Field, model_validator
 
 from generate import render_html
+from identity import normalize_arxiv, normalize_doi, paper_identity
+from library_sync import mark_updated
+from publish import check_publish_config, publish_library
 
 load_dotenv(Path(__file__).with_name(".env"))
 logger = logging.getLogger(__name__)
@@ -32,6 +37,8 @@ class Meta(BaseModel):
     authors: list[str]
     venue: str
     year: int
+    doi: str = Field(default="", description="This paper's DOI, only if explicitly printed in the PDF; empty if uncertain. Never a cited paper's DOI.")
+    arxiv_id: str = Field(default="", description="This paper's arXiv identifier including its exact vN version if printed; empty if uncertain. Never infer a version.")
 
 
 class Overview(BaseModel):
@@ -171,6 +178,8 @@ SYSTEM_PROMPT = r"""你是一位協助碩士生閱讀學術論文的研究助理
   保留主張、推理或機制、實驗條件與證據，不要只抽一句結論；原段落較短時不必湊句數。
   不要改寫、拼接不相鄰的句子或補寫原文；唯一允許的轉寫是將數學符號忠實轉成 LaTeX。
 - zh 完整翻譯 en，不要再壓縮成摘要；段落之間用換行分隔。
+- 所有中文欄位（含名詞解釋）依技術語境選詞，優先使用臺灣常見且自然的技術用語，避免逐字硬譯。
+  先辨明詞語在本文指涉的具體對象；沒有通行或自然的中文譯名時保留英文，首次出現可加簡短中文說明。
 - 一般每個主要 section 挑 2–5 個互補的 block，涵蓋該節的關鍵論點；不重要或重複的段落可省略。
 - importance 5 = 幾乎一定要讀；4 = 重要；3 = 有幫助；1-2 通常不要收錄。
 - kind 依功能選 problem / contribution / concept / method / result / limitation。
@@ -295,10 +304,17 @@ def main() -> None:
         default=os.getenv("OPENAI_REASONING", "high"),
     )
     parser.add_argument("--out", type=Path, default=Path("output"))
+    parser.add_argument("--no-publish", action="store_true", help="Only generate local files.")
+    parser.add_argument("--doi", help="Supply this paper's DOI if it is not printed in the PDF.")
+    parser.add_argument("--arxiv-id", help="Supply an exact arXiv ID, including its version.")
     args = parser.parse_args()
 
     if args.detail not in ("low", "auto", "high"):
         parser.error("OPENAI_DETAIL must be low, auto, or high")
+    if args.doi and not normalize_doi(args.doi):
+        parser.error("--doi must be a DOI or doi.org URL")
+    if args.arxiv_id and not normalize_arxiv(args.arxiv_id):
+        parser.error("--arxiv-id must be a valid arXiv identifier")
 
     if args.pdf.suffix.lower() != ".pdf" or not args.pdf.is_file():
         parser.error("pdf must point to an existing .pdf file")
@@ -307,14 +323,28 @@ def main() -> None:
             "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key."
         )
 
+    project = "" if args.no_publish else os.getenv("CLOUDFLARE_PAGES_PROJECT", "").strip()
+    if project:
+        try:
+            check_publish_config(project)
+        except ValueError as error:
+            parser.error(str(error))
+
     started = monotonic()
     generation = {}
     paper = annotate(
         args.pdf, args.model, args.detail, args.reasoning, generation=generation
     )
+    generation["generated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     data = paper.model_dump(mode="json")
     data["generation"] = generation
-    out_dir = args.out / args.pdf.stem
+    if args.doi:
+        data["meta"]["doi"] = normalize_doi(args.doi)
+    if args.arxiv_id:
+        data["meta"]["arxiv_id"] = normalize_arxiv(args.arxiv_id)
+    data["source"] = paper_identity(args.pdf, data["meta"])
+    paper_id = data["source"]["id"]
+    out_dir = args.out / paper_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = out_dir / "paper.json"
@@ -324,10 +354,25 @@ def main() -> None:
     )
 
     html_path = out_dir / "paper.html"
-    render_html(data, html_path)
+    render_html(data, html_path, asset_dir=args.out / "assets")
 
     print(json_path)
     print(html_path)
+    if project:
+        print("正在更新並發布論文閱讀庫……", flush=True)
+        try:
+            mark_updated(args.out, paper_id)
+            url = publish_library(args.out, project)
+        except (OSError, ValueError, KeyError, RuntimeError) as error:
+            print(f"發布失敗，本機成果已保留：{error}", file=sys.stderr)
+            print(
+                f'重試發布（不呼叫模型）：uv run python publish.py --out "{args.out}"',
+                file=sys.stderr,
+            )
+            print(f"總耗時：{monotonic() - started:.1f}s", file=sys.stderr)
+            raise SystemExit(1) from error
+        print(f"論文閱讀庫：{url}/")
+        print(f"本篇連結：{url}/{quote(paper_id, safe='')}/paper.html")
     print(f"總耗時：{monotonic() - started:.1f}s", file=sys.stderr)
 
 
